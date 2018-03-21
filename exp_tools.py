@@ -1,5 +1,6 @@
 import contextlib
 import os
+import skimage.io as io
 import sys
 
 import jug
@@ -7,6 +8,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
+from sklearn.model_selection import train_test_split
 
 import GPflow
 import GPflow.minibatch as mb
@@ -43,6 +45,31 @@ def load_mnist():
     Yt = np.argmax(mnist.test.labels, 1)[:, None]
     return X, Y, Xt, Yt
 
+def load_fruits():
+    imgs = []    
+    target = []
+    data_path = '/Users/rasulkh/.kaggle/competitions/fruits-360/Training'
+    fruit_names = os.listdir(data_path)
+    fruit_names.remove('.DS_Store')
+
+    end_of_array = 0
+
+    for i, fruit in enumerate(fruit_names):
+        img_path = os.path.join(data_path, fruit)
+        images = os.listdir(img_path)
+        size_images = len(images)
+        target[end_of_array : end_of_array + size_images] = i * np.ones(size_images)
+        end_of_array += size_images + 1
+        for img in images:    
+            imgs.append(io.imread(os.path.join(img_path, img))[::4, ::4] / 255.0)
+
+    imgs = np.array(imgs, dtype=float).reshape(len(target), -1)
+    target = np.array(target, dtype=int).reshape(-1,1)
+
+    X, Xt, Y, Yt = train_test_split(imgs, target)
+
+    return X, Y, Xt, Yt
+
 
 class ExperimentBase(object):
     def __init__(self, name):
@@ -53,6 +80,7 @@ class ExperimentBase(object):
         self.Y = None
         self.Xt = None
         self.Yt = None
+        self.size_classes = None
         self.run_settings = {}
 
     def setup_dataset(self, verbose=False):
@@ -143,6 +171,12 @@ class MnistExperiment(ExperimentBase):
     def setup_dataset(self, verbose=False):
         with suppress_print():
             self.X, self.Y, self.Xt, self.Yt = load_mnist()
+
+class FruitExperiment(ExperimentBase):
+    def setup_dataset(self, verbose=False):
+        self.X, self.Y, self.Xt, self.Yt = load_fruits()
+        self.size_classes = len(np.unique(self.Y))
+        print(self.size_classes)
 
 
 class RectanglesImageExperiment(ExperimentBase):

@@ -9,12 +9,13 @@ import opt_tools
 
 
 class GPflowBenchmarkTrackerBase(opt_tools.tasks.GPflowLogOptimisation):
-    def __init__(self, test_X, test_Y, sequence, trigger="iter", old_hist=None, store_fullg=False, store_x=None,
+    def __init__(self, test_X, test_Y, size_classes, sequence, trigger="iter", old_hist=None, store_fullg=False, store_x=None,
                  store_x_columns=None, verbose=False):
         opt_tools.tasks.GPflowLogOptimisation.__init__(self, sequence, trigger, old_hist, store_fullg, store_x,
                                                        store_x_columns)
         self.test_X = test_X
         self.test_Y = test_Y
+        self.size_classes = size_classes
         self.verbose = verbose
 
     def _get_record(self, logger, x, f=None):
@@ -78,8 +79,8 @@ class GPflowMultiClassificationTracker(GPflowBenchmarkTrackerBase):
                        for n in range(-(-len(self.test_X) // pred_batch_size))])
         assert len(p) == len(self.test_X)
         # acc = ((p > 0.5).astype('float') == self.test_Y).mean()
-        acc = (np.argmax(p, 1) == self.test_Y[:, 0]).mean()
-        pcorrect = p[self.test_Y == np.arange(0, 10)[None, :]]
+        acc = np.array(np.argmax(p, 1) == self.test_Y[:, 0]).mean()
+        pcorrect = p[self.test_Y == np.arange(0, self.size_classes)[None, :]]
         nlpp = -np.mean(np.log(pcorrect))
 
         log_dict.update({'acc': acc, 'err': 1 - acc, 'nlpp': nlpp})
