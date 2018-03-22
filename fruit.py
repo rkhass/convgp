@@ -26,17 +26,20 @@ class FruitExperiment(exp_tools.FruitExperiment):
         if self.run_settings['kernel'] == "rbf":
             k = GPflow.kernels.RBF(25 * 25 * 3)
             Z = self.X[np.random.permutation(len(self.X))[:self.M], :]
-        # elif self.run_settings['kernel'] == "poly":
-        #     k = GPflow.kernels.Polynomial(25 * 25, degree=9.0)
-        #     Z = self.X[np.random.permutation(len(self.X))[:self.M], :]
-        # elif self.run_settings['kernel'] == "rbfpoly":
-        #     k = (GPflow.kernels.Polynomial(25 * 25, degree=9.0) + GPflow.kernels.RBF(25 * 25) +
-        #          GPflow.kernels.White(25 * 25, 1e-1))
-        #     Z = self.X[np.random.permutation(len(self.X))[:self.M], :]
-        elif self.run_settings["kernel"] == "conv":
-            k = ckern.ConvRBF([25, 25], [5, 5]) + GPflow.kernels.White(1, 1e-3)
         elif self.run_settings['kernel'] == "wconv":
             k = ckern.WeightedConv(GPflow.kernels.RBF(25), [25, 25], [5, 5], colour_channels=3) + GPflow.kernels.White(1, 1e-3)
+        elif self.run_settings['kernel'] == "cpwconv":
+            k = ckern.WeightedColourPatchConv(GPflow.kernels.RBF(25 * 3), [25, 25], [5, 5], colour_channels=3)
+        elif self.run_settings['kernel'] == "addwconv":
+            basekern = None
+            for i in range(3):
+                addkern = GPflow.kernels.RBF(patch_size * patch_size, variance=1.0 + np.random.randn(1) * 0.01,
+                                             lengthscales=0.5, active_dims=np.s_[i::3])
+                basekern = basekern + addkern if basekern is not None else addkern
+            k = ckern.WeightedColourPatchConv(basekern, [25, 25], [patch_size, patch_size], colour_channels=3)
+        elif self.run_settings['kernel'] == "multi":
+            k = misvgp.WeightedMultiChannelConvGP(GPflow.kernels.RBF(5 * 5), [25, 25], [5, 5], 3)
+            self.pred_batch_size = 200
         else:
             raise NotImplementedError
 
@@ -61,10 +64,10 @@ class FruitExperiment(exp_tools.FruitExperiment):
             opt_tools.tasks.GPflowLogOptimisation(opt_tools.seq_exp_lin(1.1, 20)),
             exp_tools.GPflowMultiClassificationTrackerLml(
                 self.Xt[:, :], self.Yt[:, :], self.size_classes, itertools.count(1800, 1800), trigger="time",
-                verbose=True, store_x="final_only", store_x_columns=".*(variance|lengthscales)"),
+                verbose=True, store_x="final_only", store_x_columns=".*(variance|lengthscales)", test_data=0),
             opt_tools.gpflow_tasks.GPflowMultiClassificationTracker(
                 self.Xt[:, :], self.Yt[:, :], self.size_classes, opt_tools.seq_exp_lin(1.5, 150, start_jump=30), trigger="time",
-                verbose=True, store_x="final_only", store_x_columns=".*(variance|lengthscales)", old_hist=h),
+                verbose=True, store_x="final_only", store_x_columns=".*(variance|lengthscales)", old_hist=h, test_data=0),
             opt_tools.tasks.StoreOptimisationHistory(self.hist_path, opt_tools.seq_exp_lin(1.5, 600, start_jump=30),
                                                      trigger="time", verbose=False),
             opt_tools.tasks.Timeout(self.run_settings.get("timeout", np.inf))

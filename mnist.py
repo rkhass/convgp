@@ -50,7 +50,7 @@ class MnistExperiment(exp_tools.MnistExperiment):
 
         k.fixed = self.run_settings.get('fixed', False)
 
-        self.m = GPflow.svgp.SVGP(self.X, self.Y, k, GPflow.likelihoods.MultiClass(10), Z.copy(), num_latent=10,
+        self.m = GPflow.svgp.SVGP(self.X, self.Y, k, GPflow.likelihoods.MultiClass(self.size_classes), Z.copy(), num_latent=self.size_classes,
                                   minibatch_size=self.run_settings.get('minibatch_size', self.M))
         if self.run_settings["fix_w"]:
             self.m.kern.W.fixed = True
@@ -63,11 +63,11 @@ class MnistExperiment(exp_tools.MnistExperiment):
             opt_tools.tasks.DisplayOptimisation(opt_tools.seq_exp_lin(1.1, 20)),
             opt_tools.tasks.GPflowLogOptimisation(opt_tools.seq_exp_lin(1.1, 20)),
             exp_tools.GPflowMultiClassificationTrackerLml(
-                self.Xt[:, :], self.Yt[:, :], itertools.count(1800, 1800), trigger="time",
-                verbose=True, store_x="final_only", store_x_columns=".*(variance|lengthscales)"),
+                self.Xt[:, :], self.Yt[:, :], self.size_classes, itertools.count(1800, 1800), trigger="time",
+                verbose=True, store_x="final_only", store_x_columns=".*(variance|lengthscales)", test_data=2),
             opt_tools.gpflow_tasks.GPflowMultiClassificationTracker(
-                self.Xt[:, :], self.Yt[:, :], opt_tools.seq_exp_lin(1.5, 150, start_jump=30), trigger="time",
-                verbose=True, store_x="final_only", store_x_columns=".*(variance|lengthscales)", old_hist=h),
+                self.Xt[:, :], self.Yt[:, :], self.size_classes, opt_tools.seq_exp_lin(1.5, 150, start_jump=30), trigger="time",
+                verbose=True, store_x="final_only", store_x_columns=".*(variance|lengthscales)", old_hist=h, test_data=2),
             opt_tools.tasks.StoreOptimisationHistory(self.hist_path, opt_tools.seq_exp_lin(1.5, 600, start_jump=30),
                                                      trigger="time", verbose=False),
             opt_tools.tasks.Timeout(self.run_settings.get("timeout", np.inf))

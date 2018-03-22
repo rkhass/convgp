@@ -90,10 +90,11 @@ class RectanglesExperiment(exp_tools.ExperimentBase):
             opt_tools.tasks.DisplayOptimisation(opt_tools.seq_exp_lin(1.1, 20)),
             opt_tools.tasks.GPflowLogOptimisation(opt_tools.seq_exp_lin(1.1, 20)),
             opt_tools.gpflow_tasks.GPflowBinClassTracker(self.Xt[self.test_slice, :], self.Yt[self.test_slice, :],
+                                                         self.size_classes,
                                                          opt_tools.seq_exp_lin(1.1, 80, 3),
                                                          verbose=True, store_x="final_only",
                                                          store_x_columns='.*(variance|lengthscales)',
-                                                         old_hist=h),
+                                                         old_hist=h, test_data=0),
             opt_tools.tasks.StoreOptimisationHistory(self.hist_path, itertools.count(0, 60), verbose=False)
         ]
         self.logger = opt_tools.GPflowOptimisationHelper(self.m, tasks)

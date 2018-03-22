@@ -1,6 +1,7 @@
 import contextlib
 import os
 import skimage.io as io
+from skimage.transform import resize
 import sys
 
 import jug
@@ -37,12 +38,11 @@ def suppress_print():
 
 
 def load_mnist():
-    mnist = input_data.read_data_sets("MNIST_data/", one_hot=True)
-    X = np.vstack((mnist.train.images.astype(float), mnist.validation.images.astype('float')))
-    Y = np.vstack((np.argmax(mnist.train.labels, 1)[:, None],
-                   np.argmax(mnist.validation.labels, 1)[:, None]))
-    Xt = mnist.test.images.astype(float)
-    Yt = np.argmax(mnist.test.labels, 1)[:, None]
+    data = pd.read_csv('/Users/rasulkh/.kaggle/competitions/digit-recognizer/train.csv')
+    data_X = data.iloc[:, 1:].values / 255.0
+    target = np.array(data.iloc[:, 0].values, dtype=int).reshape(-1, 1)
+    X, Xt, Y, Yt = train_test_split(data_X, target, test_size=0.05)
+
     return X, Y, Xt, Yt
 
 def load_fruits():
@@ -70,6 +70,36 @@ def load_fruits():
 
     return X, Y, Xt, Yt
 
+def load_dogs():
+    labels = pd.read_csv('/Users/rasulkh/.kaggle/competitions/dog-breed-identification/labels.csv');
+    indices = labels.breed.value_counts().index
+    indices = indices[:3]
+    new_labels = labels.set_index('breed').loc[indices].reset_index()
+
+    imgs = []    
+    target = []
+    data_path = '/Users/rasulkh/.kaggle/competitions/dog-breed-identification/train/'
+
+    dict_classes = dict()
+    for i, name in enumerate(indices.values):
+        dict_classes[name] = i
+
+    for i, img in (new_labels.values):
+        img_path = os.path.join(data_path, img) + '.jpg'
+        imgs.append(resize(io.imread(img_path, as_grey=True), (200, 200), mode='reflect'))
+        target.append(dict_classes[i])
+
+    print(imgs[0])
+    print(imgs[0].max(), imgs[0].min())
+    imgs = np.array(imgs, dtype=float).reshape(len(target), -1)
+    target = np.array(target, dtype=int).reshape(-1,1)
+
+    print('Train data uploaded with ', len(imgs), ' images and ', len(np.unique(target)), ' classes')
+
+    X, Xt, Y, Yt = train_test_split(imgs, target, test_size=0.15)
+    print(Y)
+
+    return X, Y, Xt, Yt
 
 class ExperimentBase(object):
     def __init__(self, name):
@@ -169,12 +199,22 @@ class CifarExperiment(ExperimentBase):
 
 class MnistExperiment(ExperimentBase):
     def setup_dataset(self, verbose=False):
-        with suppress_print():
-            self.X, self.Y, self.Xt, self.Yt = load_mnist()
+        #with suppress_print():
+        self.X, self.Y, self.Xt, self.Yt = load_mnist()
+        self.size_classes=10
+
+        print(self.Xt.shape, self.Yt.shape)
+
 
 class FruitExperiment(ExperimentBase):
     def setup_dataset(self, verbose=False):
         self.X, self.Y, self.Xt, self.Yt = load_fruits()
+        self.size_classes = len(np.unique(self.Y))
+        print(self.size_classes)
+
+class DogExperiment(ExperimentBase):
+    def setup_dataset(self, verbose=False):
+        self.X, self.Y, self.Xt, self.Yt = load_dogs()
         self.size_classes = len(np.unique(self.Y))
         print(self.size_classes)
 
@@ -183,6 +223,7 @@ class RectanglesImageExperiment(ExperimentBase):
     def setup_dataset(self, verbose=False):
         d = np.load('datasets/rectangles_im.npz')
         self.X, self.Y, self.Xt, self.Yt = d['X'], d['Y'], d['Xtest'], d['Ytest']
+        self.size_classes = len(np.unique(self.Y))
 
 
 def calculate_large_batch_lml(m, minibatch_size, batches, progress=False):
